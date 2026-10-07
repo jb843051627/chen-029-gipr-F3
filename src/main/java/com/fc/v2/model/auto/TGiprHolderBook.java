@@ -37,6 +37,11 @@ public class TGiprHolderBook implements Serializable {
     @ApiModelProperty(value = "用标企业授权册代号")
     private String holderNo;
 
+    /** 由哪一条授权改口（点齐同回钉入；年底凭它与授权行回查对齐） */
+    @TableField("grant_id")
+    @ApiModelProperty(value = "由哪一条授权改口")
+    private Long grantId;
+
     /** 挂在哪一个名录产品名下 */
     @TableField("prod_id")
     @ApiModelProperty(value = "挂在哪一个名录产品名下")
@@ -113,6 +118,14 @@ public class TGiprHolderBook implements Serializable {
 
     public void setHolderNo(String holderNo) {
         this.holderNo = holderNo;
+    }
+
+    public Long getGrantId() {
+        return grantId;
+    }
+
+    public void setGrantId(Long grantId) {
+        this.grantId = grantId;
     }
 
     public Integer getProdId() {

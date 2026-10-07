@@ -1,6 +1,7 @@
 package com.fc.v2.model.auto;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -36,29 +37,54 @@ public class TGiprCertBill implements Serializable {
     @ApiModelProperty(value = "专用标志使用授权签批单")
     private String billNo;
 
-    /** 当前所在关 0..2（县级初核/市级核认/省局核准） */
+    /** 用标企业授权册代号（授权钉到哪一家） */
+    @TableField("holder_no")
+    @ApiModelProperty(value = "用标企业授权册代号（授权钉到哪一家）")
+    private String holderNo;
+
+    /** 名录产品代号（授权钉到哪一批名录产品） */
+    @TableField("prod_no")
+    @ApiModelProperty(value = "名录产品代号（授权钉到哪一批名录产品）")
+    private String prodNo;
+
+    /** 点齐当场认定的那一道换算贴线（钉死，不按改线后的新线重算） */
+    @TableField("rule_code")
+    @ApiModelProperty(value = "点齐当场认定的那一道换算贴线")
+    private String ruleCode;
+
+    /** 点齐那一刻由本单带出的授权行（一单一授，只许本单回写） */
+    @TableField("grant_id")
+    @ApiModelProperty(value = "点齐那一刻由本单带出的授权行")
+    private Long grantId;
+
+    /** 当前所在关 0..2（县级初核/市级核认/省局核准），一律后端当场数，报文自称不认 */
     @TableField("node_no")
     @ApiModelProperty(value = "当前所在关 0..2（县级初核/市级核认/省局核准）")
     private Integer nodeNo;
 
-    /** 本关算齐办法 0一名即齐 1两名须同判 */
+    /** 本关算齐办法 0先到作准 1两名须同判（值随后端关策走，只作回声） */
     @TableField("sign_mode")
-    @ApiModelProperty(value = "本关算齐办法 0一名即齐 1两名须同判")
+    @ApiModelProperty(value = "本关算齐办法 0先到作准 1两名须同判")
     private Integer signMode;
 
-    /** 本关应签人数 */
+    /** 本关应签人数 1..2（定员量程，关策当场数；写0/9一笔不合进不了库） */
     @TableField("need_count")
     @ApiModelProperty(value = "本关应签人数")
     private Integer needCount;
 
-    /** 本关已到人数 */
+    /** 本关本轮已到人数（当场从票行数，不留手填口子） */
     @TableField("sign_count")
-    @ApiModelProperty(value = "本关已到人数")
+    @ApiModelProperty(value = "本关本轮已到人数")
     private Integer signCount;
 
-    /** 签批情形 0在签 1已点齐 2已压回 */
+    /** 止住那一刻写回本行的不可原话（屏上列得出来；缓过来后清空——清空也要落库，故 IGNORED） */
+    @TableField(value = "veto_opinion", updateStrategy = FieldStrategy.IGNORED)
+    @ApiModelProperty(value = "止住那一刻写回本行的不可原话")
+    private String vetoOpinion;
+
+    /** 签批情形 0在签 1已点齐封住 2已止住（不可） */
     @TableField("status")
-    @ApiModelProperty(value = "签批情形 0在签 1已点齐 2已压回")
+    @ApiModelProperty(value = "签批情形 0在签 1已点齐封住 2已止住（不可）")
     private Integer status;
 
     /** 删除标记 0正常 1删除 */
@@ -109,6 +135,38 @@ public class TGiprCertBill implements Serializable {
         this.billNo = billNo;
     }
 
+    public String getHolderNo() {
+        return holderNo;
+    }
+
+    public void setHolderNo(String holderNo) {
+        this.holderNo = holderNo;
+    }
+
+    public String getProdNo() {
+        return prodNo;
+    }
+
+    public void setProdNo(String prodNo) {
+        this.prodNo = prodNo;
+    }
+
+    public String getRuleCode() {
+        return ruleCode;
+    }
+
+    public void setRuleCode(String ruleCode) {
+        this.ruleCode = ruleCode;
+    }
+
+    public Long getGrantId() {
+        return grantId;
+    }
+
+    public void setGrantId(Long grantId) {
+        this.grantId = grantId;
+    }
+
     public Integer getNodeNo() {
         return nodeNo;
     }
@@ -139,6 +197,14 @@ public class TGiprCertBill implements Serializable {
 
     public void setSignCount(Integer signCount) {
         this.signCount = signCount;
+    }
+
+    public String getVetoOpinion() {
+        return vetoOpinion;
+    }
+
+    public void setVetoOpinion(String vetoOpinion) {
+        this.vetoOpinion = vetoOpinion;
     }
 
     public Integer getStatus() {
