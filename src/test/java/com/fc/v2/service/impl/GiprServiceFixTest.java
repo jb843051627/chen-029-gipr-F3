@@ -398,6 +398,68 @@ class GiprServiceFixTest {
         assertEquals(Integer.valueOf(0), r.getStatus());
     }
 
+    @Test
+    void signModeWinsOverNeedCount() {
+        // 算齐办法与应签人数并立时先听算齐办法：两名须同判就是两票，应签人数写 5 也不作数
+        TGiprCertBill r = bill(0, 1, 5, 0, 0);
+        when(billMapper.selectById(1L)).thenReturn(r);
+        when(billMapper.updateById(any())).thenReturn(1);
+        billService.approve(1L, "zhangsan", "ok");
+        assertEquals(Integer.valueOf(0), r.getNodeNo());
+        assertEquals(Integer.valueOf(1), r.getSignCount());
+        billService.approve(1L, "lisi", "ok");
+        assertEquals(Integer.valueOf(1), r.getNodeNo());
+        assertEquals(Integer.valueOf(0), r.getSignCount());
+
+        // 应签人数写 1 也压不低两名须同判
+        TGiprCertBill r2 = bill(0, 1, 1, 0, 0);
+        when(billMapper.selectById(2L)).thenReturn(r2);
+        billService.approve(2L, "zhangsan", "ok");
+        assertEquals(Integer.valueOf(0), r2.getNodeNo());
+        assertEquals(Integer.valueOf(1), r2.getSignCount());
+
+        // 一名即齐：应签人数写得再大，一名落笔即算齐
+        TGiprCertBill r3 = bill(1, 0, 8, 0, 0);
+        when(billMapper.selectById(3L)).thenReturn(r3);
+        billService.approve(3L, "zhangsan", "ok");
+        assertEquals(Integer.valueOf(2), r3.getNodeNo());
+        assertEquals(Integer.valueOf(0), r3.getSignCount());
+    }
+
+    @Test
+    void vetoedBillOnlyRollbackReopens() {
+        TGiprCertBill r = bill(2, 1, 2, 1, 0);
+        when(billMapper.selectById(1L)).thenReturn(r);
+        when(billMapper.updateById(any())).thenReturn(1);
+        billService.reject(1L, "zhangsan", "材料不齐");
+        // 任一方落不可即止住：不可的话写回本行，后头的岗不再收笔
+        assertEquals(Integer.valueOf(2), r.getStatus());
+        assertTrue(r.getRemark().contains("材料不齐"));
+        assertNull(billService.approve(1L, "lisi", "ok"));
+        assertNull(billService.reject(1L, "lisi", "no"));
+
+        // 要缓过来只能压回上一关重签：本轮已收票一并抹掉，重新挪到这一关时从头累计
+        billService.rollback(1L, "rework");
+        assertEquals(Integer.valueOf(1), r.getNodeNo());
+        assertEquals(Integer.valueOf(0), r.getSignCount());
+        assertEquals(Integer.valueOf(0), r.getStatus());
+        billService.approve(1L, "wangwu", "ok");
+        assertEquals(Integer.valueOf(1), r.getSignCount());
+    }
+
+    @Test
+    void sealedBillRefusesFurtherStrokes() {
+        TGiprCertBill r = bill(2, 0, 1, 0, 0);
+        when(billMapper.selectById(1L)).thenReturn(r);
+        when(billMapper.updateById(any())).thenReturn(1);
+        billService.approve(1L, "zhangsan", "ok");
+        // 末段点齐即整张封住：再补一笔、事后改口一概不接
+        assertEquals(Integer.valueOf(1), r.getStatus());
+        assertNull(billService.approve(1L, "lisi", "ok"));
+        assertNull(billService.reject(1L, "lisi", "no"));
+        assertEquals(Integer.valueOf(1), r.getStatus());
+    }
+
     // ================= 提醒条目（scheduling-job） =================
 
     private static TGiprCheckItem item(long dueInDays, BigDecimal amount) {

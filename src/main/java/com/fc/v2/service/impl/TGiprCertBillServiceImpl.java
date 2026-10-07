@@ -1,6 +1,7 @@
 package com.fc.v2.service.impl;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.fc.v2.mapper.auto.TGiprCertBillMapper;
 import com.fc.v2.model.auto.TGiprCertBill;
@@ -18,6 +19,9 @@ public class TGiprCertBillServiceImpl implements ITGiprCertBillService {
     private static final int MAX_NODE = 2;
     private static final int MODE_OR = 0;
     private static final int MODE_AND = 1;
+    /** 算齐只听本关算齐办法：0一名即齐、1两名须同判；应签人数只作参考，不进算齐口径 */
+    private static final int OR_QUORUM = 1;
+    private static final int AND_QUORUM = 2;
     private static final int STATUS_RUNNING = 0;
     private static final int STATUS_PASS = 1;
     private static final int STATUS_VETO = 2;
@@ -31,6 +35,7 @@ public class TGiprCertBillServiceImpl implements ITGiprCertBillService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public TGiprCertBill approve(Long id, String approver, String comment) {
         TGiprCertBill r = this.giprCertBillMapper.selectById(id);
         if (r == null || approver == null || approver.trim().isEmpty()) {
@@ -42,10 +47,10 @@ public class TGiprCertBillServiceImpl implements ITGiprCertBillService {
         }
         int signed = (r.getSignCount() == null ? 0 : r.getSignCount()) + 1;
         r.setSignCount(Integer.valueOf(signed));
-        // 本关算齐办法：0一名即齐，1两名须同判（按应签人数齐票）
+        // 本关算齐办法：0一名即齐，1两名须同判。算齐办法与应签人数并立时先听算齐办法，
+        // 应签人数只作参考，不进算齐口径（关次与人数一律由后端当场数出来，报文说了不算）
         int mode = r.getSignMode() == null ? MODE_OR : r.getSignMode();
-        int need = r.getNeedCount() == null || r.getNeedCount() < 1 ? 1 : r.getNeedCount();
-        boolean nodeDone = mode == MODE_AND ? signed >= need : signed >= 1;
+        boolean nodeDone = mode == MODE_AND ? signed >= AND_QUORUM : signed >= OR_QUORUM;
         if (nodeDone) {
             int node = r.getNodeNo() == null ? 0 : r.getNodeNo();
             if (node >= MAX_NODE) {
@@ -62,6 +67,7 @@ public class TGiprCertBillServiceImpl implements ITGiprCertBillService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public TGiprCertBill reject(Long id, String approver, String comment) {
         TGiprCertBill r = this.giprCertBillMapper.selectById(id);
         if (r == null) {
@@ -78,16 +84,14 @@ public class TGiprCertBillServiceImpl implements ITGiprCertBillService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public TGiprCertBill rollback(Long id, String comment) {
         TGiprCertBill r = this.giprCertBillMapper.selectById(id);
         if (r == null) {
             return null;
         }
-        int status = r.getStatus() == null ? STATUS_RUNNING : r.getStatus();
-        if (status == STATUS_VETO) {
-            return null;
-        }
-        // 退回上一环节（与流转单同一口径：逐档退）：本关已收票清零，单子回到在签
+        // 压回上一关重签（被不可止住的单子也只有这一条回头路）：本关本轮已收票一并抹掉不算，
+        // 单子回到在签；重新挪到这一关时从头累计，旧票不混新票
         int node = r.getNodeNo() == null ? 0 : r.getNodeNo();
         r.setNodeNo(Integer.valueOf(Math.max(0, node - 1)));
         r.setSignCount(Integer.valueOf(0));
